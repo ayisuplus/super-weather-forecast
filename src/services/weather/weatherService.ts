@@ -1,32 +1,37 @@
 import axios from 'axios'
 import { WeatherData, ForecastData, GlobalWeatherData, LocationSearchResult, ExtremeWeatherEvent } from '../../types'
+import { loadSettings } from '../settings/settingsService'
 
 // API配置
-const API_KEY = import.meta.env.VITE_OPENWEATHER_API_KEY || 'DEMO_KEY'
+const DEFAULT_API_KEY = import.meta.env.VITE_OPENWEATHER_API_KEY || ''
 const BASE_URL = 'https://api.openweathermap.org/data/2.5'
 const GEO_URL = 'https://api.openweathermap.org/geo/1.0'
-const USE_MOCK_DATA = !API_KEY || API_KEY === 'YOUR_OPENWEATHER_API_KEY' || API_KEY === 'DEMO_KEY'
+
+// 动态获取当前使用的API Key
+const getApiKey = () => {
+  const settings = loadSettings()
+  return settings.apiKeys.openweathermap || DEFAULT_API_KEY
+}
+
+// 是否使用模拟数据
+const useMockData = () => {
+  const apiKey = getApiKey()
+  return !apiKey || apiKey === 'YOUR_OPENWEATHER_API_KEY' || apiKey === 'DEMO_KEY'
+}
 
 // 创建axios实例
 const apiClient = axios.create({
   baseURL: BASE_URL,
   params: {
-    appid: API_KEY,
     units: 'metric' // 使用摄氏度
   }
 })
 
-// 创建地理编码API实例
-const geoApiClient = axios.create({
-  baseURL: GEO_URL,
-  params: {
-    appid: API_KEY
-  }
-})
+// 地理编码API不需要单独实例，直接用axios调用
 
 // 获取当前天气数据
 export const getCurrentWeather = async (lat: number, lon: number): Promise<WeatherData> => {
-  if (USE_MOCK_DATA) {
+  if (useMockData()) {
     console.log('使用模拟天气数据')
     return getMockCurrentWeather(lat, lon)
   }
@@ -34,7 +39,12 @@ export const getCurrentWeather = async (lat: number, lon: number): Promise<Weath
   try {
     console.log('调用OpenWeatherMap API获取天气数据')
     const response = await apiClient.get('/weather', {
-      params: { lat, lon, lang: 'zh_cn' } // 返回中文描述
+      params: {
+        lat,
+        lon,
+        lang: 'zh_cn',
+        appid: getApiKey()
+      }
     })
     return response.data
   } catch (error) {
@@ -46,14 +56,20 @@ export const getCurrentWeather = async (lat: number, lon: number): Promise<Weath
 
 // 获取天气预报数据
 export const getForecast = async (lat: number, lon: number, days: number): Promise<ForecastData> => {
-  if (USE_MOCK_DATA) {
+  if (useMockData()) {
     return getMockForecast(lat, lon, days)
   }
 
   try {
     console.log('调用OpenWeatherMap API获取天气预报')
     const response = await apiClient.get('/forecast', {
-      params: { lat, lon, cnt: days * 8, lang: 'zh_cn' } // 每3小时一个数据点，一天8个
+      params: {
+        lat,
+        lon,
+        cnt: days * 8,
+        lang: 'zh_cn',
+        appid: getApiKey()
+      }
     })
     return response.data
   } catch (error) {
@@ -77,16 +93,17 @@ export const getGlobalWeather = async (zoom: number): Promise<GlobalWeatherData>
 
 // 搜索地点
 export const searchLocations = async (query: string, limit: number = 5): Promise<LocationSearchResult[]> => {
-  if (USE_MOCK_DATA) {
+  if (useMockData()) {
     return getMockLocationSearch(query, limit)
   }
 
   try {
     console.log('调用地理编码API搜索地点')
-    const response = await geoApiClient.get('/direct', {
+    const response = await axios.get(`${GEO_URL}/direct`, {
       params: {
         q: query,
-        limit
+        limit,
+        appid: getApiKey()
       }
     })
     return response.data

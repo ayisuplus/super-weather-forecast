@@ -19,6 +19,9 @@ const defaultSettings: UserSettings = {
   theme: 'dark',
   performance: {
     renderQuality: 'medium'
+  },
+  apiKeys: {
+    openweathermap: '' // 默认空，使用模拟数据，需要用户自行填写
   }
 }
 
@@ -36,7 +39,16 @@ export const loadSettings = (): UserSettings => {
   try {
     const storedSettings = localStorage.getItem('weatherAppSettings')
     if (storedSettings) {
-      return JSON.parse(storedSettings)
+      const parsedSettings = JSON.parse(storedSettings)
+      // 确保新增的apiKeys字段存在，兼容旧版本用户
+      return {
+        ...defaultSettings,
+        ...parsedSettings,
+        apiKeys: {
+          ...defaultSettings.apiKeys,
+          ...parsedSettings.apiKeys
+        }
+      }
     }
   } catch (error) {
     console.error('加载设置失败:', error)

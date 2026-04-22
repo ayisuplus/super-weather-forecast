@@ -87,23 +87,26 @@ export interface ExtremeWeatherEvent {
 // 用户设置类型
 export interface UserSettings {
   savedLocations: Array<{
-    name: string;
-    lat: number;
-    lon: number;
-  }>;
+    name: string
+    lat: number
+    lon: number
+  }>
   defaultView: {
-    lat: number;
-    lon: number;
-    zoom: number;
-  };
+    lat: number
+    lon: number
+    zoom: number
+  }
   dataPreferences: {
-    defaultDataDimension: 'temperature' | 'precipitation' | 'wind' | 'pressure';
-    temperatureUnit: 'celsius' | 'fahrenheit';
-  };
-  theme: 'light' | 'dark';
+    defaultDataDimension: 'temperature' | 'precipitation' | 'wind' | 'pressure'
+    temperatureUnit: 'celsius' | 'fahrenheit'
+  }
+  theme: 'light' | 'dark'
   performance: {
-    renderQuality: 'low' | 'medium' | 'high';
-  };
+    renderQuality: 'low' | 'medium' | 'high'
+  }
+  apiKeys: {
+    openweathermap: string // 用户自定义OpenWeatherMap API Key
+  }
 }
 
 // 数据维度类型

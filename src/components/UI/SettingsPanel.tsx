@@ -171,6 +171,28 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose }) => {
           </div>
         </div>
 
+        {/* API Key 配置 */}
+         <div className="mb-6">
+           <h3 className="text-lg font-medium mb-3">API Key 配置</h3>
+           <div>
+             <label className="block text-sm mb-1">OpenWeatherMap API Key</label>
+             <input
+               type="password"
+               placeholder="请输入您的 OpenWeatherMap API Key"
+               value={settings.apiKeys.openweathermap || ''}
+               onChange={(e) => setSettings({
+                 ...settings,
+                 apiKeys: {
+                   ...settings.apiKeys,
+                   openweathermap: e.target.value
+                 }
+               })}
+               className="w-full px-4 py-2 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+             />
+             <p className="text-xs text-gray-400 mt-1">可在 https://openweathermap.org/api 免费申请，填入后即可获取真实天气数据</p>
+           </div>
+         </div>
+
         {/* 保存按钮 */}
         <div className="flex justify-end">
           <button

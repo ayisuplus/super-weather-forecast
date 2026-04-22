@@ -1,9 +1,11 @@
-import { useRef, useEffect, useState } from 'react'
+import { useRef, useEffect, useState, useImperativeHandle, forwardRef } from 'react'
 import * as THREE from 'three'
 // @ts-ignore - OrbitControls类型声明可能存在问题
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { DataDimension, TimeRange, GlobalWeatherData } from '../../types'
 import { getGlobalWeather } from '../../services/weather/weatherService'
+import { PyramidTileManager } from '../../services/map/pyramidTileManager'
+import { ProvinceData } from '../../data/provinces'
 
 interface EarthModelProps {
   onLocationSelect: (location: { lat: number; lon: number; name: string }) => void
@@ -11,7 +13,11 @@ interface EarthModelProps {
   timeRange: TimeRange
 }
 
-const EarthModel: React.FC<EarthModelProps> = ({ onLocationSelect, dataDimension, timeRange }) => {
+export interface EarthModelRef {
+  setProvince: (province: ProvinceData) => void
+}
+
+const EarthModel = forwardRef<EarthModelRef, EarthModelProps>(({ onLocationSelect, dataDimension, timeRange }, ref) => {
   const containerRef = useRef<HTMLDivElement>(null)
   const sceneRef = useRef<THREE.Scene | null>(null)
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null)
@@ -21,7 +27,30 @@ const EarthModel: React.FC<EarthModelProps> = ({ onLocationSelect, dataDimension
   const weatherDataRef = useRef<GlobalWeatherData | null>(null)
   const weatherPointsRef = useRef<THREE.Points | null>(null)
   const animationIdRef = useRef<number | null>(null)
+  const tileManagerRef = useRef<PyramidTileManager | null>(null)
   const [loading, setLoading] = useState(true)
+
+  // 暴露给父组件的方法
+  useImperativeHandle(ref, () => ({
+    setProvince: (province: ProvinceData) => {
+      if (tileManagerRef.current) {
+        tileManagerRef.current.setProvince(province)
+      }
+      // 同时调整相机位置到省份
+      if (cameraRef.current && controlsRef.current) {
+        const phi = (90 - province.lat) * (Math.PI / 180)
+        const theta = (province.lon + 180) * (Math.PI / 180)
+
+        const radius = 2.5 - (province.zoom / 10) // 根据缩放级别调整距离
+        cameraRef.current.position.x = radius * Math.sin(phi) * Math.cos(theta)
+        cameraRef.current.position.y = radius * Math.cos(phi)
+        cameraRef.current.position.z = radius * Math.sin(phi) * Math.sin(theta)
+
+        controlsRef.current.target.set(0, 0, 0)
+        controlsRef.current.update()
+      }
+    }
+  }))
 
   // 初始化Three.js场景
   useEffect(() => {
@@ -37,9 +66,21 @@ const EarthModel: React.FC<EarthModelProps> = ({ onLocationSelect, dataDimension
     camera.position.z = 2
     cameraRef.current = camera
 
-    // 创建渲染器
-    const renderer = new THREE.WebGLRenderer({ antialias: true })
+    // 创建渲染器（高清+抗锯齿）
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: true,
+      powerPreference: 'high-performance'
+    })
+    // 高清渲染适配
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     renderer.setSize(window.innerWidth, window.innerHeight)
+    // 启用物理光照
+    renderer.useLegacyLights = false
+    // @ts-ignore 兼容不同版本Three.js类型声明
+    renderer.outputColorSpace = THREE.SRGBColorSpace
+    renderer.toneMapping = THREE.ACESFilmicToneMapping
+    renderer.toneMappingExposure = 1.2
     containerRef.current.appendChild(renderer.domElement)
     rendererRef.current = renderer
 
@@ -54,37 +95,84 @@ const EarthModel: React.FC<EarthModelProps> = ({ onLocationSelect, dataDimension
 
     // 创建地球
     const createEarth = () => {
-      // 地球几何体
-      const geometry = new THREE.SphereGeometry(1, 64, 64)
-      
-      // 地球材质
-      const material = new THREE.MeshBasicMaterial({
-        color: 0x0066cc,
-        wireframe: false
+      // 高精度地球几何体
+      const geometry = new THREE.SphereGeometry(1, 128, 128)
+
+      // 创建金字塔瓦片管理器
+      const tileManager = new PyramidTileManager()
+      tileManagerRef.current = tileManager
+
+      // 卫星影像材质
+      const material = new THREE.MeshStandardMaterial({
+        map: tileManager.getTexture(),
+        metalness: 0.05,
+        roughness: 0.9,
+        transparent: false
       })
-      
+
+      // 初始加载中国区域（国家级）
+      tileManager.setCenterAndZoom(116.4074, 39.9042, 4)
+
       const earth = new THREE.Mesh(geometry, material)
       scene.add(earth)
       earthRef.current = earth
 
-      // 添加大气层效果
-      const atmosphereGeometry = new THREE.SphereGeometry(1.02, 64, 64)
+      // 简化版大气层效果，保证兼容性
+      const atmosphereGeometry = new THREE.SphereGeometry(1.05, 64, 64)
       const atmosphereMaterial = new THREE.MeshBasicMaterial({
-        color: 0x0099ff,
+        color: 0x4da6ff,
         transparent: true,
-        opacity: 0.3
+        opacity: 0.4,
+        side: THREE.BackSide
       })
       const atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial)
       scene.add(atmosphere)
 
-      // 添加环境光
-      const ambientLight = new THREE.AmbientLight(0x404040)
+      // 外层辉光效果（简化版）
+      const outerAtmosphereGeometry = new THREE.SphereGeometry(1.12, 64, 64)
+      const outerAtmosphereMaterial = new THREE.MeshBasicMaterial({
+        color: 0x66b3ff,
+        transparent: true,
+        opacity: 0.25,
+        side: THREE.BackSide
+      })
+      const outerAtmosphere = new THREE.Mesh(outerAtmosphereGeometry, outerAtmosphereMaterial)
+      scene.add(outerAtmosphere)
+
+      // 边缘发光效果（使用MeshNormalMaterial增强视觉效果）
+      const glowGeometry = new THREE.SphereGeometry(1.01, 64, 64)
+      const glowMaterial = new THREE.MeshNormalMaterial({
+        transparent: true,
+        opacity: 0.2,
+        side: THREE.FrontSide
+      })
+      const glowMesh = new THREE.Mesh(glowGeometry, glowMaterial)
+      scene.add(glowMesh)
+
+      // 真实光照系统
+      // 环境光（基础亮度）
+      const ambientLight = new THREE.AmbientLight(0x404050, 0.4)
       scene.add(ambientLight)
 
-      // 添加平行光（模拟太阳）
-      const directionalLight = new THREE.DirectionalLight(0xffffff, 1)
-      directionalLight.position.set(5, 3, 5)
+      // 平行光（主太阳光，暖白色）
+      const directionalLight = new THREE.DirectionalLight(0xffffff, 1.2)
+      directionalLight.position.set(8, 4, 6)
+      directionalLight.castShadow = true
+      // 高清阴影设置
+      directionalLight.shadow.mapSize.width = 4096
+      directionalLight.shadow.mapSize.height = 4096
+      directionalLight.shadow.camera.near = 0.5
+      directionalLight.shadow.camera.far = 20
       scene.add(directionalLight)
+
+      // 半球光（模拟天空漫反射）
+      const hemisphereLight = new THREE.HemisphereLight(0x6699ff, 0x000000, 0.6)
+      scene.add(hemisphereLight)
+
+      // 补光（增强暗部细节）
+      const fillLight = new THREE.DirectionalLight(0xccddff, 0.3)
+      fillLight.position.set(-5, 2, -3)
+      scene.add(fillLight)
     }
 
     createEarth()
@@ -92,7 +180,7 @@ const EarthModel: React.FC<EarthModelProps> = ({ onLocationSelect, dataDimension
     // 处理窗口大小变化
     const handleResize = () => {
       if (!cameraRef.current || !rendererRef.current) return
-      
+
       cameraRef.current.aspect = window.innerWidth / window.innerHeight
       cameraRef.current.updateProjectionMatrix()
       rendererRef.current.setSize(window.innerWidth, window.innerHeight)
@@ -103,15 +191,23 @@ const EarthModel: React.FC<EarthModelProps> = ({ onLocationSelect, dataDimension
     // 动画循环
     const animate = () => {
       animationIdRef.current = requestAnimationFrame(animate)
-      
-      // 地球自转
+
+      // 地球自转（更流畅的速度）
       if (earthRef.current) {
-        earthRef.current.rotation.y += 0.001
+        earthRef.current.rotation.y += 0.0015
       }
 
       // 更新控制器
       if (controlsRef.current) {
         controlsRef.current.update()
+      }
+
+      // 根据相机距离更新瓦片
+      if (tileManagerRef.current && cameraRef.current && controlsRef.current) {
+        const distance = cameraRef.current.position.length()
+        // 获取目标点（地球中心方向）
+        const target = new THREE.Vector3(0, 0, 0)
+        tileManagerRef.current.updateByCameraDistance(distance, target)
       }
 
       // 渲染场景
@@ -140,11 +236,11 @@ const EarthModel: React.FC<EarthModelProps> = ({ onLocationSelect, dataDimension
       if (intersects.length > 0) {
         // 获取点击位置的坐标
         const point = intersects[0].point
-        
+
         // 转换为经纬度
         const lat = Math.asin(point.y / point.length()) * (180 / Math.PI)
         const lon = Math.atan2(point.z, point.x) * (180 / Math.PI)
-        
+
         // 触发位置选择回调
         onLocationSelect({
           lat,
@@ -160,12 +256,17 @@ const EarthModel: React.FC<EarthModelProps> = ({ onLocationSelect, dataDimension
     return () => {
       window.removeEventListener('resize', handleResize)
       window.removeEventListener('click', handleClick)
-      
+
       // 取消动画
       if (animationIdRef.current) {
         cancelAnimationFrame(animationIdRef.current)
       }
-      
+
+      // 清理瓦片管理器
+      if (tileManagerRef.current) {
+        tileManagerRef.current.dispose()
+      }
+
       if (containerRef.current && rendererRef.current) {
         containerRef.current.removeChild(rendererRef.current.domElement)
       }
@@ -212,7 +313,14 @@ const EarthModel: React.FC<EarthModelProps> = ({ onLocationSelect, dataDimension
 
     const data = weatherDataRef.current
     const pointsGeometry = new THREE.BufferGeometry()
-    const pointsMaterial = new THREE.PointsMaterial({ size: 0.01 })
+    // 升级天气点材质，更好的显示效果
+    const pointsMaterial = new THREE.PointsMaterial({
+      size: 0.012,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.9,
+      sizeAttenuation: true
+    })
 
     const positions: number[] = []
     const colors: number[] = []
@@ -277,6 +385,6 @@ const EarthModel: React.FC<EarthModelProps> = ({ onLocationSelect, dataDimension
       )}
     </div>
   )
-}
+})
 
 export default EarthModel

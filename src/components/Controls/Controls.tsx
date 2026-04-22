@@ -70,101 +70,134 @@ const Controls: React.FC<ControlsProps> = ({
         </button>
       </div>
 
-      {/* 数据维度选择 */}
-      <div className="mb-6">
-        <h3 className="text-lg font-medium mb-3">数据维度</h3>
-        <div className="grid grid-cols-2 gap-2">
-          {dataDimensions.map((dimension) => (
-            <button
-              key={dimension.value}
-              onClick={() => onDataDimensionChange(dimension.value)}
-              className={`p-3 rounded-lg flex flex-col items-center ${dataDimension === dimension.value ? 'bg-blue-600' : 'bg-gray-700 hover:bg-gray-600'}`}
-            >
-              <span className="text-2xl mb-1">{dimension.icon}</span>
-              <span>{dimension.label}</span>
-            </button>
-          ))}
+      {/* 标题 */}
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+            天气地图
+          </h1>
+          <button 
+            onClick={onShowSettings}
+            className="p-2 rounded-lg hover:bg-white/10 transition-all btn-hover"
+          >
+            ⚙️
+          </button>
         </div>
-      </div>
 
-      {/* 时间范围选择 */}
-      <div className="mb-6">
-        <h3 className="text-lg font-medium mb-3">时间范围</h3>
-        <div className="flex space-x-2">
-          {timeRanges.map((range) => (
-            <button
-              key={range.value}
-              onClick={() => onTimeRangeChange(range.value)}
-              className={`flex-1 py-2 rounded-lg ${timeRange === range.value ? 'bg-blue-600' : 'bg-gray-700 hover:bg-gray-600'}`}
-            >
-              {range.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* 地点搜索 */}
-      <div className="mb-6">
-        <h3 className="text-lg font-medium mb-3">地点搜索</h3>
-        <div className="relative">
-          <input
-            type="text"
-            placeholder="搜索城市..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full px-4 py-2 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          {showSearchResults && searchResults.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-gray-800 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
-              {searchResults.map((result, index) => (
-                <div
-                  key={index}
-                  className="px-4 py-2 hover:bg-gray-700 cursor-pointer"
-                  onClick={() => {
-                    // 这里可以添加定位到该地点的逻辑
-                    console.log('定位到:', result)
-                    setSearchQuery(result.name)
-                    setShowSearchResults(false)
-                  }}
-                >
-                  <div className="font-medium">{result.name}</div>
-                  <div className="text-sm text-gray-400">{result.country}</div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* 常用地点 */}
-      <div className="mb-6">
-        <h3 className="text-lg font-medium mb-3">常用地点</h3>
-        <div className="space-y-2">
-          <div className="p-3 bg-gray-700 rounded-lg hover:bg-gray-600 cursor-pointer">
-            <div className="font-medium">北京</div>
-            <div className="text-sm text-gray-400">中国</div>
-          </div>
-          <div className="p-3 bg-gray-700 rounded-lg hover:bg-gray-600 cursor-pointer">
-            <div className="font-medium">上海</div>
-            <div className="text-sm text-gray-400">中国</div>
-          </div>
-          <div className="p-3 bg-gray-700 rounded-lg hover:bg-gray-600 cursor-pointer">
-            <div className="font-medium">广州</div>
-            <div className="text-sm text-gray-400">中国</div>
+        {/* 数据维度选择 */}
+        <div className="mb-8">
+          <h3 className="text-lg font-medium mb-3 flex items-center">
+            <span className="mr-2">📊</span> 数据维度
+          </h3>
+          <div className="grid grid-cols-2 gap-3">
+            {dataDimensions.map((dimension) => (
+              <button
+                key={dimension.value}
+                onClick={() => onDataDimensionChange(dimension.value)}
+                className={`p-4 rounded-xl flex flex-col items-center transition-all duration-200 btn-hover ${
+                  dataDimension === dimension.value 
+                    ? 'bg-gradient-to-br from-blue-600 to-blue-800 shadow-lg shadow-blue-500/20' 
+                    : 'glass hover:bg-white/15'
+                }`}
+              >
+                <span className="text-3xl mb-2">{dimension.icon}</span>
+                <span className="font-medium">{dimension.label}</span>
+              </button>
+            ))}
           </div>
         </div>
-      </div>
 
-      {/* 帮助信息 */}
-      <div>
-        <h3 className="text-lg font-medium mb-3">使用帮助</h3>
-        <div className="bg-gray-700 p-3 rounded-lg text-sm">
-          <p className="mb-2">• 鼠标拖拽：旋转地球</p>
-          <p className="mb-2">• 滚轮：缩放地球</p>
-          <p className="mb-2">• 点击地球：查看详细天气</p>
-          <p>• 选择数据维度：查看不同天气数据</p>
+        {/* 时间范围选择 */}
+        <div className="mb-8">
+          <h3 className="text-lg font-medium mb-3 flex items-center">
+            <span className="mr-2">⏰</span> 时间范围
+          </h3>
+          <div className="flex space-x-2">
+            {timeRanges.map((range) => (
+              <button
+                key={range.value}
+                onClick={() => onTimeRangeChange(range.value)}
+                className={`flex-1 py-3 rounded-xl font-medium transition-all duration-200 btn-hover ${
+                  timeRange === range.value 
+                    ? 'bg-gradient-to-r from-purple-600 to-blue-600 shadow-lg shadow-purple-500/20' 
+                    : 'glass hover:bg-white/15'
+                }`}
+              >
+                {range.label}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+
+        {/* 地点搜索 */}
+        <div className="mb-8">
+          <h3 className="text-lg font-medium mb-3 flex items-center">
+            <span className="mr-2">🔍</span> 地点搜索
+          </h3>
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="搜索城市..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full px-4 py-3 glass rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all placeholder:text-gray-400"
+            />
+            {showSearchResults && searchResults.length > 0 && (
+              <div className="absolute top-full left-0 right-0 mt-2 glass rounded-xl shadow-2xl z-10 max-h-64 overflow-y-auto fade-in">
+                {searchResults.map((result, index) => (
+                  <div
+                    key={index}
+                    className="px-4 py-3 hover:bg-white/10 cursor-pointer transition-all border-b border-white/5 last:border-0"
+                    onClick={() => {
+                      // 这里可以添加定位到该地点的逻辑
+                      console.log('定位到:', result)
+                      setSearchQuery(result.name)
+                      setShowSearchResults(false)
+                    }}
+                  >
+                    <div className="font-medium">{result.name}</div>
+                    <div className="text-sm text-gray-400">{result.country}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 常用地点 */}
+        <div className="mb-8">
+          <h3 className="text-lg font-medium mb-3 flex items-center">
+            <span className="mr-2">⭐</span> 常用地点
+          </h3>
+          <div className="space-y-2">
+            {['北京', '上海', '广州', '深圳'].map((city, index) => (
+              <div key={index} className="p-3 glass rounded-xl hover:bg-white/10 cursor-pointer transition-all card-hover">
+                <div className="font-medium">{city}</div>
+                <div className="text-sm text-gray-400">中国</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* 帮助信息 */}
+        <div className="glass rounded-xl p-4">
+          <h3 className="text-lg font-medium mb-3 flex items-center">
+            <span className="mr-2">💡</span> 使用提示
+          </h3>
+          <div className="space-y-2 text-sm text-gray-300">
+            <p className="flex items-center">
+              <span className="mr-2">🖱️</span> 拖拽旋转地球
+            </p>
+            <p className="flex items-center">
+              <span className="mr-2">🖱️</span> 滚轮缩放视图
+            </p>
+            <p className="flex items-center">
+              <span className="mr-2">👆</span> 点击查看天气
+            </p>
+            <p className="flex items-center">
+              <span className="mr-2">🔄</span> 数据每15分钟更新
+            </p>
+          </div>
+        </div>
     </div>
   )
 }
